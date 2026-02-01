@@ -67,7 +67,7 @@ function Library:CreateUI()
     UIStroke.Parent = Frame
 
     local Title = Instance.new("TextLabel")
-    Title.Text = "CRYSTEEL"
+    Title.Text = "CRYSTEEL ESP"
     Title.Size = UDim2.new(1, 0, 0, 40)
     Title.BackgroundTransparency = 1
     Title.TextColor3 = Settings.Theme.Text
@@ -341,3 +341,4 @@ UserInputService.InputBegan:Connect(function(input)
     end
 
 end)
+
