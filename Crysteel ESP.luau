@@ -5,7 +5,7 @@ local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 
---
+
 
 local Settings = {
     MasterEnabled = false,
@@ -30,7 +30,7 @@ local Settings = {
     }
 }
 
---
+
 
 local Library = {}
 local MainFrame = nil
@@ -148,7 +148,7 @@ function Library:CreateToggle(parent, text, defaultState, callback)
     end)
 end
 
---
+
 
 local ESP_Storage = {} 
 
@@ -243,7 +243,7 @@ local function CreateESP(player)
     player.CharacterAdded:Connect(Attach)
 end
 
---
+
 
 RunService.RenderStepped:Connect(function()
     if not Settings.MasterEnabled then return end
@@ -287,11 +287,11 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---
+
 
 local Container = Library:CreateUI()
 
-Library:CreateToggle(Container, "Master Switch", false, function(state)
+Library:CreateToggle(Container, "TOGGLE", false, function(state)
     Settings.MasterEnabled = state
     if not state then
 
@@ -339,4 +339,5 @@ UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.RightControl and MainFrame then
         MainFrame.Visible = not MainFrame.Visible
     end
+
 end)
