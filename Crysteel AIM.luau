@@ -225,15 +225,15 @@ end)
 
 local Container = Library:CreateUI()
 
-Library:CreateToggle(Container, "AIM-TOGGLE", false, function(v)
+Library:CreateToggle(Container, "TOGGLE", false, function(v)
     Settings.AimbotEnabled = v
 end)
 
-Library:CreateToggle(Container, "TEAM-CHECK", false, function(v)
+Library:CreateToggle(Container, "TEAM Check", false, function(v)
     Settings.TeamCheck = v
 end)
 
-Library:CreateToggle(Container, "WALL-CHECK", false, function(v)
+Library:CreateToggle(Container, "WALL Check", false, function(v)
     Settings.WallCheck = v
 end)
 
@@ -260,3 +260,4 @@ UserInputService.InputBegan:Connect(function(input)
         MainFrame.Visible = not MainFrame.Visible
     end
 end)
+
