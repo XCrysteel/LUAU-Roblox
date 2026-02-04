@@ -1,0 +1,15 @@
+---
+layout: default
+title: Home
+---
+
+<h3>My Scripts</h3>
+<div class="script-grid">
+    {% for script in site.scripts %}
+        <div class="script-card">
+            <h4><a href="{{ script.url | relative_url }}">{{ script.title }}</a></h4>
+            <p>{{ script.description }}</p>
+            <span class="tag">Luau</span>
+        </div>
+    {% endfor %}
+</div>
