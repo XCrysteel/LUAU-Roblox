@@ -1,0 +1,33 @@
+body {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+a { color: #569cd6; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.script-card {
+    border: 1px solid #333;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    background: #252526;
+}
+
+pre {
+    background: #1e1e1e !important;
+    border: 1px solid #333;
+    padding: 15px;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+
+.back-button {
+    display: inline-block;
+    margin-top: 20px;
+    font-weight: bold;
+}
