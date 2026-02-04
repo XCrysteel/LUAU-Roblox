@@ -1,0 +1,15 @@
+---
+layout: default
+---
+<article class="script-view">
+    <h2>{{ page.title }}</h2>
+    {% if page.description %}
+        <p class="description">{{ page.description }}</p>
+    {% endif %}
+
+    <div class="code-block">
+        <pre><code class="language-lua">{{ content }}</code></pre>
+    </div>
+    
+    <a href="{{ '/' | relative_url }}" class="back-button">← Back to Portfolio</a>
+</article>
