@@ -1,0 +1,15 @@
+title: XCrysteel Portfolio
+description: Professional Roblox Luau Developer Portfolio
+theme: jekyll-theme-slate 
+baseurl: "/LUAU-Roblox"    
+url: "https://xcrysteel.github.io"
+
+
+markdown: kramdown
+highlighter: rouge
+
+
+collections:
+  scripts:
+    output: true 
+    permalink: /scripts/:slug/
