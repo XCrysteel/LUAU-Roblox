@@ -1,3 +1,4 @@
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -5,9 +6,11 @@ local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
 
-local Camera = Workspace.CurrentCamera
-local LocalPlayer = Players.LocalPlayer
+local Camera: Camera = Workspace.CurrentCamera
+local LocalPlayer: Player = Players.LocalPlayer
+
 
 local Settings = {
     AimbotEnabled = false,
@@ -15,9 +18,12 @@ local Settings = {
     WallCheck = false,
     AimPart = "Head",
     RandomTarget = false,
-    RandomDelay = {0.4, 1.2},
+    RandomDelay = { 0.4, 1.2 },
     Sensitivity = 0.5,
     FOV = 300,
+
+    ActivationInput = Enum.UserInputType.MouseButton2,
+
     Theme = {
         Main = Color3.fromRGB(20, 20, 20),
         Accent = Color3.fromRGB(40, 40, 40),
@@ -25,42 +31,128 @@ local Settings = {
         Red = Color3.fromRGB(255, 60, 60),
         Green = Color3.fromRGB(60, 255, 100),
         Blue = Color3.fromRGB(60, 150, 255),
-        Stroke = Color3.fromRGB(80, 80, 80)
+        Stroke = Color3.fromRGB(80, 80, 80),
     }
 }
+
+
+
+type PersistedSettings = {
+    AimbotEnabled: boolean,
+    TeamCheck: boolean,
+    WallCheck: boolean,
+    AimPart: string,
+    RandomTarget: boolean,
+    Sensitivity: number,
+    FOV: number,
+}
+
+
+local CONFIG_FILE: string = "crysteel_aim_config.json"
+
+local FS = {
+    readfile = (readfile :: any),
+    writefile = (writefile :: any),
+    isfile = (isfile :: any),
+}
+
+local function LoadConfig(): PersistedSettings?
+    if not FS.isfile or not FS.readfile then
+        return nil
+    end
+
+    if not FS.isfile(CONFIG_FILE) then
+        return nil
+    end
+
+    local raw: string = FS.readfile(CONFIG_FILE)
+    local decoded: unknown = HttpService:JSONDecode(raw)
+
+    if type(decoded) ~= "table" then
+        return nil
+    end
+
+    return decoded :: PersistedSettings
+end
+
+local function SaveConfig(data: PersistedSettings): ()
+    if not FS.writefile then
+        return
+    end
+
+    FS.writefile(CONFIG_FILE, HttpService:JSONEncode(data))
+end
+
+local function CommitSettings(): ()
+    SaveConfig({
+        AimbotEnabled = Settings.AimbotEnabled,
+        TeamCheck = Settings.TeamCheck,
+        WallCheck = Settings.WallCheck,
+        AimPart = Settings.AimPart,
+        RandomTarget = Settings.RandomTarget,
+        Sensitivity = Settings.Sensitivity,
+        FOV = Settings.FOV,
+    })
+end
+
+do
+    local saved: PersistedSettings? = LoadConfig()
+    if saved then
+        Settings.AimbotEnabled = saved.AimbotEnabled
+        Settings.TeamCheck = saved.TeamCheck
+        Settings.WallCheck = saved.WallCheck
+        Settings.AimPart = saved.AimPart
+        Settings.RandomTarget = saved.RandomTarget
+        Settings.Sensitivity = saved.Sensitivity
+        Settings.FOV = saved.FOV
+    end
+end
+
+
 
 task.spawn(function()
     while true do
         if Settings.RandomTarget then
             Settings.AimPart = (math.random(1, 2) == 1) and "Head" or "HumanoidRootPart"
         end
-        task.wait(math.random() * (Settings.RandomDelay[2] - Settings.RandomDelay[1]) + Settings.RandomDelay[1])
+
+        task.wait(
+            math.random() * (Settings.RandomDelay[2] - Settings.RandomDelay[1])
+                + Settings.RandomDelay[1]
+        )
     end
 end)
 
-local Library = {}
-local MainFrame = nil
 
-function Library:CreateUI()
+
+local Library = {}
+local MainFrame: Frame?
+
+function Library:CreateUI(): Frame
     if CoreGui:FindFirstChild("CrysteelAimUI") then
         CoreGui.CrysteelAimUI:Destroy()
     end
 
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "CrysteelAimUI"
-    pcall(function() ScreenGui.Parent = CoreGui end)
+
+    pcall(function()
+        ScreenGui.Parent = CoreGui
+    end)
+
     if not ScreenGui.Parent then
         ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     end
 
     local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 240, 0, 300)
+    Frame.Size = UDim2.new(0, 240, 0, 330)
     Frame.Position = UDim2.new(0.5, -120, 0.4, 0)
     Frame.BackgroundColor3 = Settings.Theme.Main
     Frame.BorderSizePixel = 0
     Frame.Active = true
     Frame.Draggable = true
     Frame.Parent = ScreenGui
+
     MainFrame = Frame
 
     Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
@@ -94,7 +186,12 @@ function Library:CreateUI()
     return Container
 end
 
-function Library:CreateToggle(parent, text, default, callback)
+function Library:CreateToggle(
+    parent: Instance,
+    text: string,
+    default: boolean,
+    callback: (boolean) -> ()
+): ()
     local Frame = Instance.new("Frame", parent)
     Frame.Size = UDim2.new(1, 0, 0, 32)
     Frame.BackgroundColor3 = Settings.Theme.Accent
@@ -122,18 +219,27 @@ function Library:CreateToggle(parent, text, default, callback)
 
     Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 4)
 
-    local state = default
+    local state: boolean = default
+
     Button.MouseButton1Click:Connect(function()
         state = not state
         Button.Text = state and "ON" or "OFF"
-        TweenService:Create(Button, TweenInfo.new(0.2), {
-            BackgroundColor3 = state and Settings.Theme.Green or Settings.Theme.Red
-        }):Play()
+
+        TweenService:Create(
+            Button,
+            TweenInfo.new(0.2),
+            { BackgroundColor3 = state and Settings.Theme.Green or Settings.Theme.Red }
+        ):Play()
+
         callback(state)
     end)
 end
 
-function Library:CreateCycler(parent, text, callback)
+function Library:CreateKeybindToggle(
+    parent: Instance,
+    text: string,
+    callback: (Enum.UserInputType | Enum.KeyCode) -> ()
+): ()
     local Frame = Instance.new("Frame", parent)
     Frame.Size = UDim2.new(1, 0, 0, 32)
     Frame.BackgroundColor3 = Settings.Theme.Accent
@@ -151,108 +257,175 @@ function Library:CreateCycler(parent, text, callback)
     Label.TextXAlignment = Enum.TextXAlignment.Left
 
     local Button = Instance.new("TextButton", Frame)
-    Button.Size = UDim2.new(0, 70, 0, 22)
-    Button.Position = UDim2.new(1, -80, 0.5, -11)
+    Button.Size = UDim2.new(0, 90, 0, 22)
+    Button.Position = UDim2.new(1, -100, 0.5, -11)
     Button.BackgroundColor3 = Settings.Theme.Blue
-    Button.Text = "HEAD"
     Button.TextColor3 = Color3.new(0, 0, 0)
     Button.Font = Enum.Font.GothamBold
     Button.TextSize = 12
 
     Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 4)
 
-    local modes = { "HEAD", "TORSO", "RANDOM" }
-    local index = 1
+    local listening: boolean = false
+
+    local function update(input: Enum.UserInputType | Enum.KeyCode)
+        Button.Text = input.Name
+    end
+
+    update(Settings.ActivationInput)
 
     Button.MouseButton1Click:Connect(function()
-        index = index % #modes + 1
-        local mode = modes[index]
-        Button.Text = mode
-        callback(mode)
+        listening = true
+        Button.Text = "PRESS..."
+    end)
+
+    UserInputService.InputBegan:Connect(function(input, gp)
+        if gp or not listening then
+            return
+        end
+
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            callback(input.KeyCode)
+            update(input.KeyCode)
+        else
+            callback(input.UserInputType)
+            update(input.UserInputType)
+        end
+
+        listening = false
     end)
 end
 
-local function IsVisible(target, part)
+
+
+local function IsVisible(target: Player, part: BasePart): boolean
     if not Settings.WallCheck then
         return true
     end
-    local origin = Camera.CFrame.Position
-    local direction = part.Position - origin
+
+    local origin: Vector3 = Camera.CFrame.Position
+    local direction: Vector3 = part.Position - origin
+
     local params = RaycastParams.new()
-    params.FilterDescendantsInstances = { LocalPlayer.Character, target.Character }
     params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = { LocalPlayer.Character, target.Character }
+
     return Workspace:Raycast(origin, direction, params) == nil
 end
 
-local function GetClosestPlayer()
-    local closest, shortest = nil, Settings.FOV
-    local mousePos = UserInputService:GetMouseLocation()
-    for _, v in ipairs(Players:GetPlayers()) do
-        if v ~= LocalPlayer
-            and v.Character
-            and v.Character:FindFirstChild("Humanoid")
-            and v.Character.Humanoid.Health > 0
-            and v.Character:FindFirstChild(Settings.AimPart)
-        then
-            if Settings.TeamCheck and v.Team == LocalPlayer.Team then
-                continue
-            end
-            local pos, onScreen = Camera:WorldToViewportPoint(v.Character[Settings.AimPart].Position)
-            if onScreen then
-                local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
-                if dist < shortest and IsVisible(v, v.Character[Settings.AimPart]) then
-                    shortest = dist
-                    closest = v
-                end
-            end
+local function GetClosestPlayer(): Player?
+    local closest: Player? = nil
+    local shortest: number = Settings.FOV
+
+    local mousePos: Vector2 = UserInputService:GetMouseLocation()
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr == LocalPlayer then
+            continue
+        end
+
+        local char = plr.Character
+        if not char then
+            continue
+        end
+
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then
+            continue
+        end
+
+        if Settings.TeamCheck and plr.Team == LocalPlayer.Team then
+            continue
+        end
+
+        local part = char:FindFirstChild(Settings.AimPart)
+        if not part then
+            continue
+        end
+
+        local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+        if not onScreen then
+            continue
+        end
+
+        local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+        if dist < shortest and IsVisible(plr, part) then
+            shortest = dist
+            closest = plr
         end
     end
+
     return closest
 end
 
-RunService.RenderStepped:Connect(function()
-    if Settings.AimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local target = GetClosestPlayer()
-        if target and target.Character then
-            local part = target.Character:FindFirstChild(Settings.AimPart)
-            if part then
-                local cf = Camera.CFrame
-                Camera.CFrame = cf:Lerp(CFrame.new(cf.Position, part.Position), Settings.Sensitivity)
-            end
+local function IsActivationHeld(): boolean
+    local input = Settings.ActivationInput
+
+    if typeof(input) == "EnumItem" then
+        if input.EnumType == Enum.UserInputType then
+            return UserInputService:IsMouseButtonPressed(input)
+        elseif input.EnumType == Enum.KeyCode then
+            return UserInputService:IsKeyDown(input)
         end
     end
+
+    return false
+end
+
+RunService.RenderStepped:Connect(function()
+    if not Settings.AimbotEnabled then
+        return
+    end
+
+    if not IsActivationHeld() then
+        return
+    end
+
+    local target = GetClosestPlayer()
+    if not target or not target.Character then
+        return
+    end
+
+    local part = target.Character:FindFirstChild(Settings.AimPart)
+    if not part then
+        return
+    end
+
+    local cf = Camera.CFrame
+    Camera.CFrame = cf:Lerp(
+        CFrame.new(cf.Position, part.Position),
+        Settings.Sensitivity
+    )
 end)
+
+
 
 local Container = Library:CreateUI()
 
-Library:CreateToggle(Container, "TOGGLE", false, function(v)
+Library:CreateToggle(Container, "TOGGLE", Settings.AimbotEnabled, function(v)
     Settings.AimbotEnabled = v
+    CommitSettings()
 end)
 
-Library:CreateToggle(Container, "TEAM Check", false, function(v)
+Library:CreateToggle(Container, "TEAM CHECK", Settings.TeamCheck, function(v)
     Settings.TeamCheck = v
+    CommitSettings()
 end)
 
-Library:CreateToggle(Container, "WALL Check", false, function(v)
+Library:CreateToggle(Container, "WALL CHECK", Settings.WallCheck, function(v)
     Settings.WallCheck = v
+    CommitSettings()
 end)
 
-Library:CreateCycler(Container, "TARGET", function(mode)
-    if mode == "HEAD" then
-        Settings.RandomTarget = false
-        Settings.AimPart = "Head"
-    elseif mode == "TORSO" then
-        Settings.RandomTarget = false
-        Settings.AimPart = "HumanoidRootPart"
-    else
-        Settings.RandomTarget = true
-    end
+Library:CreateKeybindToggle(Container, "AIM KEY", function(input)
+    Settings.ActivationInput = input
+    CommitSettings()
 end)
 
 StarterGui:SetCore("SendNotification", {
     Title = "CRYSTEEL AIM",
-    Text = "R-CTRL for UI",
-    Duration = 5
+    Text = "R-CTRL to toggle UI",
+    Duration = 5,
 })
 
 UserInputService.InputBegan:Connect(function(input)
@@ -260,3 +433,4 @@ UserInputService.InputBegan:Connect(function(input)
         MainFrame.Visible = not MainFrame.Visible
     end
 end)
+	
