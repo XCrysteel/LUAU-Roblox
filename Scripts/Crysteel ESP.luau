@@ -1,9 +1,14 @@
+
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+local CONFIG_FILE = "CrysteelConfig.json"
 
 local Settings = {
     MasterEnabled = false,
@@ -26,6 +31,114 @@ local Settings = {
 
 local Library = {}
 local MainFrame = nil
+
+
+local function color3ToTable(c)
+    return { r = math.floor(c.R * 255 + 0.5), g = math.floor(c.G * 255 + 0.5), b = math.floor(c.B * 255 + 0.5) }
+end
+
+local function tableToColor3(t)
+    if type(t) ~= "table" then
+        return Color3.fromRGB(0, 0, 0)
+    end
+    return Color3.fromRGB(t.r or 0, t.g or 0, t.b or 0)
+end
+
+local function canUseFile()
+    return type(writefile) == "function" and type(readfile) == "function" and type(isfile) == "function"
+end
+
+local function serializeSettings()
+    local s = {
+        MasterEnabled = Settings.MasterEnabled,
+        ShowName = Settings.ShowName,
+        ShowHP = Settings.ShowHP,
+        ShowTeam = Settings.ShowTeam,
+        ShowBody = Settings.ShowBody,
+        ShowDistance = Settings.ShowDistance,
+        Theme = {}
+    }
+    for k, v in pairs(Settings.Theme) do
+        if typeof(v) == "Color3" then
+            s.Theme[k] = color3ToTable(v)
+        else
+            s.Theme[k] = v
+        end
+    end
+    return s
+end
+
+local function SaveSettings()
+    local ok, err = pcall(function()
+        local payload = serializeSettings()
+        local json = HttpService:JSONEncode(payload)
+        if canUseFile() then
+            writefile(CONFIG_FILE, json)
+        else
+            
+            if LocalPlayer and LocalPlayer.SetAttribute then
+                LocalPlayer:SetAttribute("CrysteelConfig", json)
+            end
+        end
+    end)
+    if not ok then
+        warn("Crysteel: Failed to save config:", err)
+    end
+end
+
+local function LoadSettings()
+    local content
+    local ok, err = pcall(function()
+        if canUseFile() and isfile(CONFIG_FILE) then
+            content = readfile(CONFIG_FILE)
+        else
+            if LocalPlayer and LocalPlayer.GetAttribute then
+                content = LocalPlayer:GetAttribute("CrysteelConfig")
+            end
+        end
+    end)
+    if not ok then
+        warn("Crysteel: Failed reading config:", err)
+        return
+    end
+
+    if not content or content == "" then
+        return
+    end
+
+    local ok2, data = pcall(function()
+        return HttpService:JSONDecode(content)
+    end)
+    if not ok2 or type(data) ~= "table" then
+        warn("Crysteel: Invalid config data")
+        return
+    end
+
+    
+    if type(data.Theme) == "table" then
+        for k, v in pairs(data.Theme) do
+            if type(v) == "table" then
+                data.Theme[k] = tableToColor3(v)
+            end
+        end
+    end
+
+    Settings.MasterEnabled = (data.MasterEnabled ~= nil) and data.MasterEnabled or Settings.MasterEnabled
+    Settings.ShowName = (data.ShowName ~= nil) and data.ShowName or Settings.ShowName
+    Settings.ShowHP = (data.ShowHP ~= nil) and data.ShowHP or Settings.ShowHP
+    Settings.ShowTeam = (data.ShowTeam ~= nil) and data.ShowTeam or Settings.ShowTeam
+    Settings.ShowBody = (data.ShowBody ~= nil) and data.ShowBody or Settings.ShowBody
+    Settings.ShowDistance = (data.ShowDistance ~= nil) and data.ShowDistance or Settings.ShowDistance
+
+    if type(data.Theme) == "table" then
+        for k, v in pairs(data.Theme) do
+            Settings.Theme[k] = v
+        end
+    end
+end
+
+
+LoadSettings()
 
 function Library:CreateUI()
     if game.CoreGui:FindFirstChild("CrysteelUI") then
@@ -139,8 +252,13 @@ function Library:CreateToggle(parent, text, defaultState, callback)
             { BackgroundColor3 = currentState and Settings.Theme.Green or Settings.Theme.Red }
         ):Play()
 
+        
         callback(currentState)
+        
+        SaveSettings()
     end)
+
+    return Button
 end
 
 local ESP_Storage = {}
@@ -230,14 +348,16 @@ local function CreateESP(player)
         hl.Adornee = char
         hl.Parent = char
 
-        local hum = char:WaitForChild("Humanoid", 5)
+        local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then
-            local hpLbl = bg.Frame.HPLabel
-            hum.HealthChanged:Connect(function()
+            local hpLbl = bg.Frame and bg.Frame:FindFirstChild("HPLabel")
+            if hpLbl then
+                hum.HealthChanged:Connect(function()
+                    hpLbl.Text = "HP: " .. math.floor(hum.Health)
+                    hpLbl.TextColor3 = Color3.fromHSV((hum.Health / hum.MaxHealth) * 0.3, 1, 1)
+                end)
                 hpLbl.Text = "HP: " .. math.floor(hum.Health)
-                hpLbl.TextColor3 = Color3.fromHSV((hum.Health / hum.MaxHealth) * 0.3, 1, 1)
-            end)
-            hpLbl.Text = "HP: " .. math.floor(hum.Health)
+            end
         end
     end
 
@@ -305,7 +425,8 @@ end)
 
 local Container = Library:CreateUI()
 
-Library:CreateToggle(Container, "TOGGLE", false, function(state)
+
+Library:CreateToggle(Container, "TOGGLE", Settings.MasterEnabled, function(state)
     Settings.MasterEnabled = state
     if not state then
         for _, store in pairs(ESP_Storage) do
@@ -325,25 +446,34 @@ Library:CreateToggle(Container, "TOGGLE", false, function(state)
     end
 end)
 
-Library:CreateToggle(Container, "ESP Name", false, function(state)
+Library:CreateToggle(Container, "ESP Name", Settings.ShowName, function(state)
     Settings.ShowName = state
 end)
 
-Library:CreateToggle(Container, "ESP Health", false, function(state)
+Library:CreateToggle(Container, "ESP Health", Settings.ShowHP, function(state)
     Settings.ShowHP = state
 end)
 
-Library:CreateToggle(Container, "ESP Team", false, function(state)
+Library:CreateToggle(Container, "ESP Team", Settings.ShowTeam, function(state)
     Settings.ShowTeam = state
 end)
 
-Library:CreateToggle(Container, "ESP Bodyparts", false, function(state)
+Library:CreateToggle(Container, "ESP Bodyparts", Settings.ShowBody, function(state)
     Settings.ShowBody = state
 end)
 
-Library:CreateToggle(Container, "ESP Distance", false, function(state)
+Library:CreateToggle(Container, "ESP Distance", Settings.ShowDistance, function(state)
     Settings.ShowDistance = state
 end)
+
+
+if Settings.MasterEnabled then
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and not ESP_Storage[p] then
+            CreateESP(p)
+        end
+    end
+end
 
 Players.PlayerAdded:Connect(function(p)
     if Settings.MasterEnabled then
