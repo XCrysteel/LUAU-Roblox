@@ -1,5 +1,3 @@
-
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -75,7 +73,6 @@ local function SaveSettings()
         if canUseFile() then
             writefile(CONFIG_FILE, json)
         else
-            
             if LocalPlayer and LocalPlayer.SetAttribute then
                 LocalPlayer:SetAttribute("CrysteelConfig", json)
             end
@@ -114,7 +111,6 @@ local function LoadSettings()
         return
     end
 
-    
     if type(data.Theme) == "table" then
         for k, v in pairs(data.Theme) do
             if type(v) == "table" then
@@ -160,7 +156,10 @@ function Library:CreateUI()
     Frame.Position = UDim2.new(0.5, -120, 0.4, 0)
     Frame.BackgroundColor3 = Settings.Theme.Main
     Frame.BorderSizePixel = 0
+    
+    -- CHANGE HERE: Set Active to true, but Visible to false
     Frame.Active = true
+    Frame.Visible = false -- This ensures it starts hidden
     Frame.Draggable = true
     Frame.Parent = ScreenGui
     MainFrame = Frame
@@ -252,9 +251,7 @@ function Library:CreateToggle(parent, text, defaultState, callback)
             { BackgroundColor3 = currentState and Settings.Theme.Green or Settings.Theme.Red }
         ):Play()
 
-        
         callback(currentState)
-        
         SaveSettings()
     end)
 
@@ -498,6 +495,7 @@ StarterGui:SetCore("SendNotification", {
     Text = "R-CTRL For UI",
     Duration = 5
 })
+
 
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.RightControl and MainFrame then
