@@ -1,4 +1,3 @@
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,8 +7,8 @@ local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 
-local Camera: Camera = Workspace.CurrentCamera
-local LocalPlayer: Player = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
 
 local Settings = {
@@ -35,28 +34,15 @@ local Settings = {
     }
 }
 
-
-
-type PersistedSettings = {
-    AimbotEnabled: boolean,
-    TeamCheck: boolean,
-    WallCheck: boolean,
-    AimPart: string,
-    RandomTarget: boolean,
-    Sensitivity: number,
-    FOV: number,
-}
-
-
-local CONFIG_FILE: string = "crysteel_aim_config.json"
+local CONFIG_FILE = "crysteel_aim_config.json"
 
 local FS = {
-    readfile = (readfile :: any),
-    writefile = (writefile :: any),
-    isfile = (isfile :: any),
+    readfile = (readfile),
+    writefile = (writefile),
+    isfile = (isfile),
 }
 
-local function LoadConfig(): PersistedSettings?
+local function LoadConfig()
     if not FS.isfile or not FS.readfile then
         return nil
     end
@@ -65,17 +51,17 @@ local function LoadConfig(): PersistedSettings?
         return nil
     end
 
-    local raw: string = FS.readfile(CONFIG_FILE)
-    local decoded: unknown = HttpService:JSONDecode(raw)
+    local raw = FS.readfile(CONFIG_FILE)
+    local decoded = HttpService:JSONDecode(raw)
 
     if type(decoded) ~= "table" then
         return nil
     end
 
-    return decoded :: PersistedSettings
+    return decoded
 end
 
-local function SaveConfig(data: PersistedSettings): ()
+local function SaveConfig(data)
     if not FS.writefile then
         return
     end
@@ -83,7 +69,7 @@ local function SaveConfig(data: PersistedSettings): ()
     FS.writefile(CONFIG_FILE, HttpService:JSONEncode(data))
 end
 
-local function CommitSettings(): ()
+local function CommitSettings()
     SaveConfig({
         AimbotEnabled = Settings.AimbotEnabled,
         TeamCheck = Settings.TeamCheck,
@@ -96,7 +82,7 @@ local function CommitSettings(): ()
 end
 
 do
-    local saved: PersistedSettings? = LoadConfig()
+    local saved = LoadConfig()
     if saved then
         Settings.AimbotEnabled = saved.AimbotEnabled
         Settings.TeamCheck = saved.TeamCheck
@@ -107,8 +93,6 @@ do
         Settings.FOV = saved.FOV
     end
 end
-
-
 
 task.spawn(function()
     while true do
@@ -123,12 +107,10 @@ task.spawn(function()
     end
 end)
 
-
-
 local Library = {}
-local MainFrame: Frame?
+local MainFrame = nil
 
-function Library:CreateUI(): Frame
+function Library:CreateUI()
     if CoreGui:FindFirstChild("CrysteelAimUI") then
         CoreGui.CrysteelAimUI:Destroy()
     end
@@ -149,13 +131,17 @@ function Library:CreateUI(): Frame
     Frame.Position = UDim2.new(0.5, -120, 0.4, 0)
     Frame.BackgroundColor3 = Settings.Theme.Main
     Frame.BorderSizePixel = 0
+    
+    -- CHANGE HERE: Set Active to true, but Visible to false
     Frame.Active = true
+    Frame.Visible = false -- Starts hidden
     Frame.Draggable = true
     Frame.Parent = ScreenGui
 
     MainFrame = Frame
 
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
+    local UICorner = Instance.new("UICorner", Frame)
+    UICorner.CornerRadius = UDim.new(0, 6)
 
     local Stroke = Instance.new("UIStroke", Frame)
     Stroke.Color = Settings.Theme.Stroke
@@ -186,17 +172,13 @@ function Library:CreateUI(): Frame
     return Container
 end
 
-function Library:CreateToggle(
-    parent: Instance,
-    text: string,
-    default: boolean,
-    callback: (boolean) -> ()
-): ()
+function Library:CreateToggle(parent, text, default, callback)
     local Frame = Instance.new("Frame", parent)
     Frame.Size = UDim2.new(1, 0, 0, 32)
     Frame.BackgroundColor3 = Settings.Theme.Accent
 
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 4)
+    local Corner = Instance.new("UICorner", Frame)
+    Corner.CornerRadius = UDim.new(0, 4)
 
     local Label = Instance.new("TextLabel", Frame)
     Label.Text = text
@@ -217,9 +199,10 @@ function Library:CreateToggle(
     Button.Font = Enum.Font.GothamBold
     Button.TextSize = 12
 
-    Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 4)
+    local BtnCorner = Instance.new("UICorner", Button)
+    BtnCorner.CornerRadius = UDim.new(0, 4)
 
-    local state: boolean = default
+    local state = default
 
     Button.MouseButton1Click:Connect(function()
         state = not state
@@ -235,16 +218,13 @@ function Library:CreateToggle(
     end)
 end
 
-function Library:CreateKeybindToggle(
-    parent: Instance,
-    text: string,
-    callback: (Enum.UserInputType | Enum.KeyCode) -> ()
-): ()
+function Library:CreateKeybindToggle(parent, text, callback)
     local Frame = Instance.new("Frame", parent)
     Frame.Size = UDim2.new(1, 0, 0, 32)
     Frame.BackgroundColor3 = Settings.Theme.Accent
 
-    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 4)
+    local Corner = Instance.new("UICorner", Frame)
+    Corner.CornerRadius = UDim.new(0, 4)
 
     local Label = Instance.new("TextLabel", Frame)
     Label.Text = text
@@ -264,11 +244,12 @@ function Library:CreateKeybindToggle(
     Button.Font = Enum.Font.GothamBold
     Button.TextSize = 12
 
-    Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 4)
+    local BtnCorner = Instance.new("UICorner", Button)
+    BtnCorner.CornerRadius = UDim.new(0, 4)
 
-    local listening: boolean = false
+    local listening = false
 
-    local function update(input: Enum.UserInputType | Enum.KeyCode)
+    local function update(input)
         Button.Text = input.Name
     end
 
@@ -296,15 +277,13 @@ function Library:CreateKeybindToggle(
     end)
 end
 
-
-
-local function IsVisible(target: Player, part: BasePart): boolean
+local function IsVisible(target, part)
     if not Settings.WallCheck then
         return true
     end
 
-    local origin: Vector3 = Camera.CFrame.Position
-    local direction: Vector3 = part.Position - origin
+    local origin = Camera.CFrame.Position
+    local direction = part.Position - origin
 
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
@@ -313,11 +292,11 @@ local function IsVisible(target: Player, part: BasePart): boolean
     return Workspace:Raycast(origin, direction, params) == nil
 end
 
-local function GetClosestPlayer(): Player?
-    local closest: Player? = nil
-    local shortest: number = Settings.FOV
+local function GetClosestPlayer()
+    local closest = nil
+    local shortest = Settings.FOV
 
-    local mousePos: Vector2 = UserInputService:GetMouseLocation()
+    local mousePos = UserInputService:GetMouseLocation()
 
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr == LocalPlayer then
@@ -358,7 +337,7 @@ local function GetClosestPlayer(): Player?
     return closest
 end
 
-local function IsActivationHeld(): boolean
+local function IsActivationHeld()
     local input = Settings.ActivationInput
 
     if typeof(input) == "EnumItem" then
@@ -398,8 +377,6 @@ RunService.RenderStepped:Connect(function()
     )
 end)
 
-
-
 local Container = Library:CreateUI()
 
 Library:CreateToggle(Container, "TOGGLE", Settings.AimbotEnabled, function(v)
@@ -433,4 +410,3 @@ UserInputService.InputBegan:Connect(function(input)
         MainFrame.Visible = not MainFrame.Visible
     end
 end)
-	
